@@ -9,9 +9,16 @@ readme = "README.md"
 python = "^3.11"
 llama-index = "^0.9.43"
 fastapi = { extras = ["all"], version = "^0.109.1" }
+chromadb = "^0.4.22"
+transformers = "^4.37.2"
+torch = "^2.2.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.2.0"
+poethepoet = "^0.24.4"
+
+[tool.poe.tasks]
+dev = "uvicorn main:app --reload"
 
 [tool.ruff.lint]
 select = ["D"]
