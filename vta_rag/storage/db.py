@@ -6,8 +6,8 @@ Only contains vector database for now.
 import logging
 
 import chromadb
-from llama_index.vector_stores import ChromaVectorStore
-from llama_index.vector_stores.types import VectorStore
+from llama_index.core.vector_stores.types import VectorStore
+from llama_index.vector_stores.chroma import ChromaVectorStore
 
 from vta_rag.constants import TESTING_DIR
 
@@ -36,7 +36,7 @@ def create_vector_store(ds_id: str) -> VectorStore:
         table = db.create_collection(ds_id)
     except Exception as e:
         log.warning(
-            "Collection already exists."
+            "Collection already exists. "
             "In the future (after development), this error will be fatal."
         )
         log.warning(e)

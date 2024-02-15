@@ -1,6 +1,6 @@
 """Create LlamaIndex storage context per dataset."""
 
-from llama_index import StorageContext
+from llama_index.core import StorageContext
 
 from vta_rag.constants import TESTING_DIR
 from vta_rag.storage.db import (
