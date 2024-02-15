@@ -85,7 +85,8 @@ async def create_document(req: CreateDocumentRequest):
     # VectorStoreIndex adds the nodes into the storage_context.docstore.
     # TODO: Isn't this duplicating what is stored by the vector store? Investigate.
     index.insert(doc)
-    # get_storage_context(req.ds_id).persist()
+    # TODO: Delete/overwrite document and past nodes if it already exists.
+    get_storage_context(req.ds_id).persist()
     return len(index.ref_doc_info[doc.doc_id].node_ids)
 
 
