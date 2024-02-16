@@ -20,23 +20,17 @@ from vta_rag.constants import (
     MONGO_URI,
     MONGO_VEC_DB_NAME,
 )
+from vta_rag.storage.db.base import VectorDbCRUD
 
-__all__ = [
-    "create_vector_store",
-    "get_vector_store",
-    "delete_vector_store",
-]
+__all__ = ["MongoDbCRUD"]
 
 log = logging.getLogger(__name__)
 
 
-mongodb_client = pymongo.MongoClient(MONGO_URI)
-
-
-def _wrap_mongo_db(ds_id: str):
+def _wrap_mongo_db(mongo_client, ds_id: str):
     """Wrap chroma collection into LlamaIndex."""
     vec_db = MongoDBAtlasVectorSearch(
-        mongodb_client,
+        mongo_client,
         db_name="vta-rag-vec-db",
         collection_name=ds_id,
         index_name="index",
@@ -44,43 +38,48 @@ def _wrap_mongo_db(ds_id: str):
     return vec_db
 
 
-def create_vector_store(ds_id: str) -> VectorStore:
-    """Create new dataset."""
-    res = requests.post(
-        f"{MONGO_EP}/groups/{MONGO_GROUP_ID}/clusters/{MONGO_CLUSTER_NAME}/fts/indexes",
-        auth=HTTPDigestAuth(MONGO_ADMIN_USER, MONGO_ADMIN_KEY),
-        headers=dict(Accept="application/vnd.atlas.2023-01-01+json"),
-        json=dict(
-            collectionName=ds_id,
-            database=MONGO_VEC_DB_NAME,
-            name="index",
-            type="vectorSearch",
-            fields=[
-                dict(
-                    type="vector",
-                    path="embedding",
-                    numDimensions=1024,
-                    similarity="dotProduct",
-                )
-            ],
-        ),
-    )
+class MongoDbCRUD(VectorDbCRUD):
+    """Mongo database dataset CRUD."""
 
-    if res.status_code != 200:
-        log.warning(f"Error {res.status_code} while creating index for {ds_id}.")
-        log.warning(res.json())
-    else:
-        log.info(f"Index for {ds_id} created.")
-        log.info(res.json())
+    def __init__(self):
+        """Init."""
+        self.db = pymongo.MongoClient(MONGO_URI)
 
-    return get_vector_store(ds_id)
+    def create(self, ds_id: str) -> VectorStore:
+        """Create new dataset."""
+        res = requests.post(
+            f"{MONGO_EP}/groups/{MONGO_GROUP_ID}/clusters/{MONGO_CLUSTER_NAME}/fts/indexes",
+            auth=HTTPDigestAuth(MONGO_ADMIN_USER, MONGO_ADMIN_KEY),
+            headers=dict(Accept="application/vnd.atlas.2023-01-01+json"),
+            json=dict(
+                collectionName=ds_id,
+                database=MONGO_VEC_DB_NAME,
+                name="index",
+                type="vectorSearch",
+                fields=[
+                    dict(
+                        type="vector",
+                        path="embedding",
+                        numDimensions=1024,
+                        similarity="dotProduct",
+                    )
+                ],
+            ),
+        )
 
+        if res.status_code != 200:
+            log.warning(f"Error {res.status_code} while creating index for {ds_id}.")
+            log.warning(res.json())
+        else:
+            log.info(f"Index for {ds_id} created.")
+            log.info(res.json())
 
-def get_vector_store(ds_id: str) -> VectorStore:
-    """Get existing dataset."""
-    return _wrap_mongo_db(ds_id)
+        return self.get(ds_id)
 
+    def get(self, ds_id: str) -> VectorStore:
+        """Get existing dataset."""
+        return _wrap_mongo_db(self.db, ds_id)
 
-def delete_vector_store(ds_id: str):
-    """Delete dataset."""
-    mongodb_client.get_database("vta-rag-vec-db").drop_collection(ds_id)
+    def delete(self, ds_id: str):
+        """Delete dataset."""
+        self.db.get_database("vta-rag-vec-db").drop_collection(ds_id)

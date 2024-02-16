@@ -5,17 +5,13 @@ from llama_index.core import StorageContext
 from vta_rag.constants import LOCAL_TEST, TESTING_DIR
 
 if LOCAL_TEST:
-    from vta_rag.storage.db.chroma import (
-        create_vector_store,
-        delete_vector_store,
-        get_vector_store,
-    )
+    from vta_rag.storage.db.chroma import ChromaDbCRUD
+
+    vec_db = ChromaDbCRUD()
 else:
-    from vta_rag.storage.db.mongo import (
-        create_vector_store,
-        delete_vector_store,
-        get_vector_store,
-    )
+    from vta_rag.storage.db.mongo import MongoDbCRUD
+
+    vec_db = MongoDbCRUD()
 
 __all__ = [
     "create_storage_context",
@@ -37,7 +33,7 @@ def create_storage_context(ds_id: str) -> StorageContext:
 
     # Note: If not set, it defaults to its "simple" variant, an in-memory store that can be dumped/loaded from disk.
     db_ctx = StorageContext.from_defaults(
-        vector_store=create_vector_store(ds_id),
+        vector_store=vec_db.create(ds_id),
         persist_dir=str(TESTING_DIR / ds_id),
     )
     return db_ctx
@@ -46,7 +42,7 @@ def create_storage_context(ds_id: str) -> StorageContext:
 def get_storage_context(ds_id: str) -> StorageContext:
     """Get storage context for dataset."""
     db_ctx = StorageContext.from_defaults(
-        vector_store=get_vector_store(ds_id),
+        vector_store=vec_db.get(ds_id),
         persist_dir=str(TESTING_DIR / ds_id),
     )
     return db_ctx
@@ -54,6 +50,6 @@ def get_storage_context(ds_id: str) -> StorageContext:
 
 def delete_storage_context(ds_id: str):
     """Delete storage context for dataset."""
-    delete_vector_store(ds_id)
+    vec_db.delete(ds_id)
     # NOTE: I am not deleting during testing if I can help it, I don't need an rm -rf / incident.
     # (TESTING_DIR / ds_id).rmdir()
