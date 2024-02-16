@@ -5,9 +5,9 @@ from llama_index.core import StorageContext
 from vta_rag.constants import LOCAL_TEST, TESTING_DIR
 
 if LOCAL_TEST:
-    from vta_rag.storage.db.chroma import ChromaDbCRUD
+    from vta_rag.storage.db.local import LocalDbCRUD
 
-    vec_db = ChromaDbCRUD()
+    vec_db = LocalDbCRUD()
 else:
     from vta_rag.storage.db.mongo import MongoDbCRUD
 
