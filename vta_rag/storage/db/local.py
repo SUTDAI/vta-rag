@@ -27,6 +27,9 @@ class LocalDbCRUD(VectorDbCRUD):
     def create(self, ds_id):
         """Create new dataset."""
         vec_db = SimpleVectorStore()
+        if (TESTING_DIR / ds_id / DEFAULT_PERSIST_FNAME).exists():
+            log.warning("Dataset already exists.")
+            return self.get(ds_id)
         vec_db.persist(str(TESTING_DIR / ds_id / DEFAULT_PERSIST_FNAME))
         return vec_db
 
