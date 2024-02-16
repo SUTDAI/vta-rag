@@ -1,6 +1,11 @@
 """API routes for document management."""
 
-from fastapi import APIRouter
+import logging
+from functools import lru_cache
+from typing import List, Optional
+from uuid import uuid4
+
+from fastapi import APIRouter, HTTPException
 from llama_index.core import Document, ServiceContext, VectorStoreIndex
 from llama_index.core.node_parser import SemanticSplitterNodeParser
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -10,9 +15,15 @@ from vta_rag.storage.context import create_storage_context, get_storage_context
 
 __all__ = ["router", "get_index"]
 
+log = logging.getLogger(__name__)
+logging.getLogger().setLevel(logging.DEBUG)
+log.setLevel(logging.DEBUG)
+
 embedder = HuggingFaceEmbedding(
     model_name="BAAI/bge-large-en-v1.5", cache_folder="./models"
 )
+
+# reranker = LLMRerank(llm="BAAI/bge-large-en-v1.5", choice_batch_size=5, top_n=3)
 
 # TODO: Tune this...
 # - Buffer Size: Number of prev sentences to consider when deciding if current sentence is a new node.
@@ -44,29 +55,40 @@ create_storage_context("00000000-0000-0000-0000-000000000000")
 class CreateDocumentRequest(BaseModel):
     """Request model for creating a document."""
 
+    doc_id: Optional[str]
+    """ID for tracking like document owner and which dataset it belongs to."""
+    ds_id: str
+    """ID for the dataset the document belongs to."""
+    content: str | List[str]
+    """The content of the document. Specify list if pre-chunked."""
+    overwrite: bool = False
+    """Forcefully overwrite previous document is already exists. Else error."""
+
+
+class DeleteDocumentRequest(BaseModel):
+    """Request model for creating a document."""
+
     doc_id: str
     """ID for tracking like document owner and which dataset it belongs to."""
     ds_id: str
     """ID for the dataset the document belongs to."""
-    content: str
-    """The content of the document."""
 
 
 router = APIRouter()
 
 
+@lru_cache
 def get_index(ds_id):
     """Get index from dataset id."""
     db_ctx = get_storage_context(ds_id)
-    index = VectorStoreIndex(
-        [],
-        service_context=srv_ctx,
-        storage_context=db_ctx,
-        use_async=False,
-        show_progress=True,
-        store_nodes_override=True,
-    )
-    return index
+    return VectorStoreIndex([], service_context=srv_ctx, storage_context=db_ctx)
+
+
+def del_doc(doc_id, ds_id):
+    """Delete document from dataset."""
+    index = get_index(ds_id)
+    index.delete_ref_doc(doc_id, delete_from_docstore=True)
+    get_storage_context(ds_id).persist()
 
 
 # See how to CRUD documents from VectorStoreIndex:
@@ -77,17 +99,41 @@ def get_index(ds_id):
 async def create_document(req: CreateDocumentRequest):
     """Create a new document."""
     text = req.content
-    text = text.replace("\r\n", " ")
-    text = text.replace("\n", " ")
-    text = text.replace("\r", "")
-    doc = Document(text=text, doc_id=req.doc_id)
-    index = get_index(req.ds_id)
-    # VectorStoreIndex adds the nodes into the storage_context.docstore.
-    # TODO: Isn't this duplicating what is stored by the vector store? Investigate.
+    doc_id = req.doc_id or str(uuid4())
+    ds_id = req.ds_id
+    index = get_index(ds_id)
+
+    # TODO: paraphrase document/chunks first?
+
+    if isinstance(text, list):
+        Document
+    else:
+        text = text.replace("\r\n", " ")
+        text = text.replace("\n", " ")
+        text = text.replace("\r", "")
+        doc = Document(text=text, doc_id=doc_id)
+
+    if doc_id in index.ref_doc_info:
+        if not req.overwrite:
+            raise HTTPException(403, f"Document with id {doc_id} already exists.")
+        del_doc(doc_id, ds_id)
+
     index.insert(doc)
-    # TODO: Delete/overwrite document and past nodes if it already exists.
-    get_storage_context(req.ds_id).persist()
-    return len(index.ref_doc_info[doc.doc_id].node_ids)
+    get_storage_context(ds_id).persist()
+    node_ids = index.ref_doc_info[doc_id].node_ids
+    return dict(doc_id=doc_id, ds_id=ds_id, node_ids=node_ids)
+
+
+@router.post("/delete_document/")
+async def delete_document(req: DeleteDocumentRequest):
+    """Delete a document."""
+    doc_id = req.doc_id or str(uuid4())
+    ds_id = req.ds_id
+    index = get_index(ds_id)
+    node_ids = index.ref_doc_info[doc_id].node_ids
+
+    del_doc(doc_id, ds_id)
+    return dict(doc_id=doc_id, ds_id=ds_id, node_ids=node_ids)
 
 
 # TODO: Return chunks by document id
