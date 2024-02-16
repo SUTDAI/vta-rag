@@ -23,8 +23,9 @@ class QueryRequest(BaseModel):
 async def query(req: QueryRequest):
     """Query dataset for chunks."""
     index = get_index(req.ds_id)
-    engine = index.as_query_engine(response_mode="no_text")
+    retriever = index.as_retriever(similarity_top_k=15)
     # TODO: Investigate QueryBundle & Query Transformation.
-    result = engine.query(req.query)
-    nodes = result.source_nodes
+    result = await retriever.aretrieve(req.query)
+    # reranker = LLMRerank(choice_batch_size=5, top_n=3)
+    nodes = result  # reranker.postprocess_nodes(result, query_str=req.query)
     return dict(chunks=[(n.get_score(), n.get_text()) for n in nodes])
