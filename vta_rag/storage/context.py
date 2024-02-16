@@ -2,12 +2,20 @@
 
 from llama_index.core import StorageContext
 
-from vta_rag.constants import TESTING_DIR
-from vta_rag.storage.db import (
-    create_vector_store,
-    delete_vector_store,
-    get_vector_store,
-)
+from vta_rag.constants import LOCAL_TEST, TESTING_DIR
+
+if LOCAL_TEST:
+    from vta_rag.storage.db.chroma import (
+        create_vector_store,
+        delete_vector_store,
+        get_vector_store,
+    )
+else:
+    from vta_rag.storage.db.mongo import (
+        create_vector_store,
+        delete_vector_store,
+        get_vector_store,
+    )
 
 __all__ = [
     "create_storage_context",
