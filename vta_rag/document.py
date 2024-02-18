@@ -16,8 +16,6 @@ from vta_rag.storage.context import create_storage_context, get_storage_context
 __all__ = ["router", "get_index"]
 
 log = logging.getLogger(__name__)
-logging.getLogger().setLevel(logging.DEBUG)
-log.setLevel(logging.DEBUG)
 
 embedder = HuggingFaceEmbedding(
     model_name="BAAI/bge-large-en-v1.5", cache_folder="./models"
@@ -28,7 +26,7 @@ embedder = HuggingFaceEmbedding(
 # TODO: Tune this...
 # - Buffer Size: Number of prev sentences to consider when deciding if current sentence is a new node.
 # - Breakpoint Threshold: Cosine Similarity threshold before breaking
-# NOTE: For some reason, unlikek the SentenceSplitter, this doesn't have a length limit...
+# NOTE: For some reason, unlike the SentenceSplitter, this doesn't have a length limit...
 splitter = SemanticSplitterNodeParser(
     buffer_size=2, breakpoint_percentile_threshold=90, embed_model=embedder
 )
@@ -43,11 +41,6 @@ splitter = SemanticSplitterNodeParser(
 srv_ctx = ServiceContext.from_defaults(
     llm=None, embed_model=embedder, node_parser=splitter
 )
-
-
-# TODO: I alr CRUD the StorageContext, just need API routes to actually create/delete them.
-# Each StorageContext represents a single dataset tied to a bot.
-create_storage_context("00000000-0000-0000-0000-000000000000")
 
 # TODO: Reranker, tune the node splitting strategy & retrieval strategy.
 
@@ -75,6 +68,17 @@ class DeleteDocumentRequest(BaseModel):
 
 
 router = APIRouter()
+
+# TODO: List documents
+# TODO: Get chunk(s) by chunk id(s) so frontend can display them
+
+
+# TODO: I alr CRUD the StorageContext, just need API routes to actually create/delete them.
+# Each StorageContext represents a single dataset tied to a bot.
+@router.on_event("startup")
+def create_test_context():
+    """Create a test context."""
+    create_storage_context("00000000-0000-0000-0000-000000000000")
 
 
 @lru_cache
@@ -137,3 +141,4 @@ async def delete_document(req: DeleteDocumentRequest):
 
 
 # TODO: Return chunks by document id
+# TODO: Check that the chunkNodes actually store the document id

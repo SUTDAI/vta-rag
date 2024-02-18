@@ -1,31 +1,46 @@
-"""Main entrypoint."""
+"""Development entrypoint."""
 
-from fastapi import FastAPI
-from pydantic import BaseModel
+import logging
 
-from vta_rag.document import get_index
-from vta_rag.document import router as doc_router
+from rich.logging import RichHandler
 
-app = FastAPI()
-app.include_router(doc_router, prefix="/api/v1")
+# NOTE: We only ever run the main entrypoint as main during development.
+# Otherwise, main:app is used by guvicorn.
 
 
-class QueryRequest(BaseModel):
-    """Request model for creating a document."""
+def create_debug_app():
+    """Hacky workaround to enable different logging for debug."""
+    import fastapi
+    import starlette
+    import uvicorn
 
-    ds_id: str
-    """ID for the dataset to query within."""
-    query: str
-    """The query."""
+    logging.basicConfig(
+        format=None,
+        handlers=[
+            RichHandler(
+                rich_tracebacks=True, tracebacks_suppress=[fastapi, starlette, uvicorn]
+            )
+        ],
+    )
+    logging.getLogger("vta_rag").setLevel(logging.DEBUG)
+
+    from vta_rag import app
+
+    return app
 
 
-@app.post("/api/v1/query")
-async def query(req: QueryRequest):
-    """Query dataset for chunks."""
-    index = get_index(req.ds_id)
-    retriever = index.as_retriever(similarity_top_k=15)
-    # TODO: Investigate QueryBundle & Query Transformation.
-    result = await retriever.aretrieve(req.query)
-    # reranker = LLMRerank(choice_batch_size=5, top_n=3)
-    nodes = result  # reranker.postprocess_nodes(result, query_str=req.query)
-    return dict(chunks=[(n.get_score(), n.get_text()) for n in nodes])
+if __name__ == "__main__":
+    import uvicorn
+
+    logging.basicConfig(format=None, handlers=[RichHandler(rich_tracebacks=True)])
+
+    # TODO: Get rich logging working.
+    uvicorn.run(
+        "main:create_debug_app",
+        host="localhost",
+        port=8000,
+        log_level=logging.INFO,
+        reload=True,
+        factory=True,
+        log_config=None,
+    )

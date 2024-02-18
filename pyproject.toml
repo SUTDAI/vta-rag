@@ -16,13 +16,16 @@ llama-index-vector-stores-chroma = "^0.1.1"
 llama-index-embeddings-huggingface = "^0.1.1"
 llama-index-vector-stores-mongodb = "^0.1.2"
 python-dotenv = "^1.0.1"
+rich = "^13.7.0"
+gunicorn = "^21.2.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.2.0"
 poethepoet = "^0.24.4"
 
 [tool.poe.tasks]
-dev = "uvicorn main:app --reload"
+dev = "python main.py"
+prod = "gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:3000 vta_rag:app"
 
 [tool.ruff.lint]
 select = ["D"]
