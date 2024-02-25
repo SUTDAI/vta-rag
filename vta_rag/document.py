@@ -84,7 +84,9 @@ def create_test_context():
 @lru_cache
 def get_index(ds_id):
     """Get index from dataset id."""
-    db_ctx = get_storage_context(ds_id)
+    # db_ctx = get_storage_context(ds_id)
+    # NOTE: This is temporary measure to make it more convenient downstream to use the API.
+    db_ctx = create_storage_context(ds_id)
     # TODO: Figure out how to use ref_doc_id with external vector store & how to del documents.
     return VectorStoreIndex(
         [], service_context=srv_ctx, storage_context=db_ctx, store_nodes_override=True
