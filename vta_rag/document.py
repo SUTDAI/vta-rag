@@ -85,7 +85,10 @@ def create_test_context():
 def get_index(ds_id):
     """Get index from dataset id."""
     db_ctx = get_storage_context(ds_id)
-    return VectorStoreIndex([], service_context=srv_ctx, storage_context=db_ctx)
+    # TODO: Figure out how to use ref_doc_id with external vector store & how to del documents.
+    return VectorStoreIndex(
+        [], service_context=srv_ctx, storage_context=db_ctx, store_nodes_override=True
+    )
 
 
 def del_doc(doc_id, ds_id):
@@ -117,6 +120,7 @@ async def create_document(req: CreateDocumentRequest):
         text = text.replace("\r", "")
         doc = Document(text=text, doc_id=doc_id)
 
+    # TODO: THIS FAILS TO DETECT DOCUMENT ALR IN DATABASE WHEN USING WORKAROUND FOR VEC DBs
     if doc_id in index.ref_doc_info:
         if not req.overwrite:
             raise HTTPException(403, f"Document with id {doc_id} already exists.")

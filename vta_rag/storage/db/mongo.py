@@ -47,6 +47,7 @@ class MongoDbCRUD(VectorDbCRUD):
 
     def create(self, ds_id: str) -> VectorStore:
         """Create new dataset."""
+        # TODO: Check/wait for index to actually be created.
         res = requests.post(
             f"{MONGO_EP}/groups/{MONGO_GROUP_ID}/clusters/{MONGO_CLUSTER_NAME}/fts/indexes",
             auth=HTTPDigestAuth(MONGO_ADMIN_USER, MONGO_ADMIN_KEY),
@@ -61,7 +62,7 @@ class MongoDbCRUD(VectorDbCRUD):
                         type="vector",
                         path="embedding",
                         numDimensions=1024,
-                        similarity="dotProduct",
+                        similarity="cosine",
                     )
                 ],
             ),
